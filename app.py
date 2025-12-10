@@ -427,42 +427,55 @@ def display_nt_results(results, image):
     st.markdown("### 📏 NT Measurement Results")
     
     thickness_mm = results['thickness_mm']
+    thickness_px = results['thickness_pixels']
+    risk_info = results.get('risk_assessment', {})
     
-    # NT risk assessment (typical thresholds)
-    # Normal: < 3.5mm, Increased risk: > 3.5mm
-    risk_level = "Low Risk" if thickness_mm < 3.5 else "Increased Risk"
-    color = "#28a745" if thickness_mm < 3.5 else "#dc3545"
+    # Get risk level from assessment or fallback to simple threshold
+    if risk_info and 'risk' in risk_info:
+        risk_level = risk_info['risk'].title()
+        risk_message = risk_info.get('message', '')
+        
+        # Color coding based on risk
+        if risk_info['risk'] == 'normal':
+            color = "#28a745"
+            icon = "✅"
+        elif risk_info['risk'] == 'borderline':
+            color = "#ffc107"
+            icon = "⚠️"
+        else:  # high or unknown
+            color = "#dc3545"
+            icon = "❌"
+    else:
+        # Fallback to simple threshold
+        risk_level = "Low Risk" if thickness_mm and thickness_mm < 3.5 else "Increased Risk"
+        risk_message = "Standard threshold applied (3.5mm)"
+        color = "#28a745" if thickness_mm and thickness_mm < 3.5 else "#dc3545"
+        icon = "✅" if thickness_mm and thickness_mm < 3.5 else "⚠️"
     
+    # Display main metrics
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("NT Thickness (mm)", f"{thickness_mm:.2f}" if thickness_mm else "N/A")
+    with col2:
+        st.metric("NT Thickness (pixels)", f"{thickness_px}")
+    
+    # Risk assessment card
     st.markdown(f"""
     <div class="metric-card" style="background: {color};">
-        <h3>📏 NT Thickness</h3>
-        <h1>{thickness_mm:.2f} mm</h1>
+        <h3>{icon} NT Measurement Analysis</h3>
+        <h2>{thickness_mm:.2f} mm</h2>
         <h4>Risk Level: {risk_level}</h4>
     </div>
     """, unsafe_allow_html=True)
     
-    # Detailed interpretation
-    if thickness_mm < 3.5:
-        interpretation = """
-        ✅ NT measurement is within normal range.
-        - Low risk for chromosomal abnormalities
-        - Continue routine prenatal care
-        """
-    else:
-        interpretation = """
-        ⚠️ NT measurement is above normal threshold.
-        - Increased risk for Down syndrome and other conditions
-        - Recommend genetic counseling
-        - Consider additional diagnostic tests (NIPT, amniocentesis)
-        """
-    
+    # Clinical interpretation
     st.markdown(f"""
     <div class="info-box">
         <h4>📋 Clinical Interpretation</h4>
-        <p><strong>Measurement:</strong> {thickness_mm:.2f} mm</p>
-        <p><strong>Normal Range:</strong> < 3.5 mm</p>
-        <p><strong>Interpretation:</strong></p>
-        <pre>{interpretation}</pre>
+        <p><strong>Measurement:</strong> {thickness_mm:.2f} mm ({thickness_px} pixels)</p>
+        <p><strong>Assessment:</strong> {risk_message}</p>
+        <p><strong>Note:</strong> NT measurements should be performed between 11-14 weeks gestation. 
+        This automated measurement should be confirmed by a qualified sonographer.</p>
     </div>
     """, unsafe_allow_html=True)
     
