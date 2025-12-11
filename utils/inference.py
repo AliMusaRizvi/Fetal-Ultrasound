@@ -9,6 +9,18 @@ import numpy as np
 from tensorflow.keras.applications.resnet50 import preprocess_input
 import math
 
+# Optional DETR/DINO-style detector for NT ROI discovery
+try:
+    from transformers import DetrImageProcessor, DetrForObjectDetection  # type: ignore
+    _TRANSFORMERS_AVAILABLE = True
+except Exception:
+    _TRANSFORMERS_AVAILABLE = False
+
+DETR_NAME = "facebook/detr-resnet-50"
+_detr_processor = None
+_detr_model = None
+_detr_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -35,6 +47,64 @@ def load_image_gray(img_path_or_array):
         img = img / 255.0
     
     return img
+
+
+def _load_detr_detector():
+    """Lazy-load DETR/DINO detector if transformers is available."""
+    global _detr_model, _detr_processor
+    if not _TRANSFORMERS_AVAILABLE:
+        return None, None
+    if _detr_model is not None and _detr_processor is not None:
+        return _detr_model, _detr_processor
+    try:
+        _detr_processor = DetrImageProcessor.from_pretrained(DETR_NAME)
+        _detr_model = DetrForObjectDetection.from_pretrained(DETR_NAME).to(_detr_device)
+        _detr_model.eval()
+        return _detr_model, _detr_processor
+    except Exception:
+        _detr_model, _detr_processor = None, None
+        return None, None
+
+
+def run_detr_inference(img_path: str, score_thresh: float = 0.5):
+    """Run DETR to get bounding boxes; returns list of [x1,y1,x2,y2] floats."""
+    model, processor = _load_detr_detector()
+    if model is None or processor is None:
+        return []
+    img = cv2.imread(img_path, cv2.IMREAD_COLOR)
+    if img is None:
+        return []
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    inputs = processor(images=img_rgb, return_tensors="pt").to(_detr_device)
+    with torch.no_grad():
+        outputs = model(**inputs)
+    target_sizes = torch.tensor([img_rgb.shape[:2]], device=_detr_device)
+    results = processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=score_thresh)[0]
+    boxes = []
+    for box in results.get("boxes", []):
+        boxes.append(box.tolist())
+    return boxes
+
+
+def build_roi_from_boxes(boxes, orig_w, orig_h, resized_w, resized_h):
+    """Create ROI mask from a list of boxes in original coordinates."""
+    roi_mask = np.zeros((resized_h, resized_w), dtype=np.float32)
+    if not boxes:
+        return roi_mask
+    scale_x = resized_w / float(orig_w)
+    scale_y = resized_h / float(orig_h)
+    for (x1, y1, x2, y2) in boxes:
+        sx1 = int(round(x1 * scale_x))
+        sy1 = int(round(y1 * scale_y))
+        sx2 = int(round(x2 * scale_x))
+        sy2 = int(round(y2 * scale_y))
+        sx1 = max(0, min(resized_w - 1, sx1))
+        sx2 = max(0, min(resized_w - 1, sx2))
+        sy1 = max(0, min(resized_h - 1, sy1))
+        sy2 = max(0, min(resized_h - 1, sy2))
+        if sx2 > sx1 and sy2 > sy1:
+            roi_mask[sy1:sy2, sx1:sx2] = 1.0
+    return roi_mask
 
 
 def build_intelligent_roi_mask(img_resized: np.ndarray) -> np.ndarray:
@@ -677,8 +747,16 @@ def infer_nt_segmentation(image, model, target_size=512, pixel_spacing_mm=0.1, u
         img, (target_size, target_size), interpolation=cv2.INTER_AREA
     )
     
-    # 3) Build ROI mask heuristically (no detector available at runtime)
-    roi_mask = build_intelligent_roi_mask(img_resized)
+    # 3) Build ROI mask
+    roi_mask = None
+    # 3a) If image is a path, try DETR/DINO detection to create ROI
+    if isinstance(image, str):
+        det_boxes = run_detr_inference(image, score_thresh=0.5)
+        if det_boxes:
+            roi_mask = build_roi_from_boxes(det_boxes, orig_w, orig_h, target_size, target_size)
+    # 3b) If detector not available or no boxes, fall back to heuristic ROI
+    if roi_mask is None or roi_mask.sum() < 1:
+        roi_mask = build_intelligent_roi_mask(img_resized)
     
     # 3.5) Generate pseudo-mask using Otsu (SAME AS TRAINING)
     # This is critical - the model was trained to refine pseudo-masks, not raw images
