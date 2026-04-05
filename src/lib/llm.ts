@@ -3,6 +3,8 @@
 // The LLM (MBZUAI/MedMO-8B) should be hosted on HuggingFace Inference API or Spaces
 // If VITE_LLM_API_URL is empty, the prompt is returned for manual use
 
+import { Client } from "@gradio/client";
+
 const LLM_BASE = import.meta.env.VITE_LLM_API_URL || '';
 
 export interface ClinicalFormData {
@@ -165,46 +167,26 @@ export async function runMedMOAnalysis(data: ClinicalFormData): Promise<MedMORep
     return generateFallbackReport(data, patientText);
   }
 
-  const res = await fetch(`${LLM_BASE}/api/analyze`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      patient_data: patientText,
-      max_new_tokens: 1500
-    }),
-  });
+  try {
+    const client = await Client.connect(LLM_BASE);
+    const result: any = await client.predict(0, [
+      patientText,
+      "",
+      false
+    ]);
 
-  if (!res.ok) {
-    throw new Error(`LLM API error: ${res.status} ${res.statusText}`);
+    const rawResponse = result?.data?.[0] || '';
+
+    const sections = parseSections(rawResponse);
+    const risk_level = extractRiskLevel(rawResponse);
+    const risk_factors = extractRiskFactors(rawResponse);
+
+    return { risk_level, risk_factors, sections, raw_response: rawResponse };
+  } catch (error) {
+    console.error("Gradio Client error:", error);
+    // If API fails, fall back to rule-based prediction so the system doesn't crash completely
+    return generateFallbackReport(data, patientText);
   }
-
-  const json = await res.json();
-  const rawResponse = json.raw_response || '';
-  const apiSections = json.sections || {};
-  
-  const mappedSections = {
-    RISK_FACTORS: apiSections.risk_factors || '',
-    RISK_LEVEL: apiSections.risk_level || '',
-    MATERNAL_RISKS: apiSections.maternal_complications || '',
-    FETAL_RISKS: apiSections.fetal_risks || '',
-    MONITORING: apiSections.monitoring || '',
-    TREATMENT_SUGGESTIONS: apiSections.treatment || '',
-    COUNSELLING: apiSections.counselling || '',
-    REFERRAL: apiSections.specialist_referral || ''
-  };
-
-  const riskFactorsArray = mappedSections.RISK_FACTORS
-    .split(/\n|;|\d+\.|•|-/)
-    .map((s: string) => s.trim())
-    .filter((s: string) => s.length > 10)
-    .slice(0, 8);
-    
-  let risk_level = json.predicted_risk;
-  if (!risk_level || risk_level === 'Unknown') {
-     risk_level = extractRiskLevel(rawResponse);
-  }
-
-  return { risk_level: risk_level as any, risk_factors: riskFactorsArray, sections: mappedSections, raw_response: rawResponse };
 }
 
 // ─── Fallback report when LLM API is unavailable ─────────────────────────────
