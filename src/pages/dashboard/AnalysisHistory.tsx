@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Search, Calendar, FileText, ImageIcon, ChevronRight, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -20,6 +21,7 @@ export default function AnalysisHistory() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('All');
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadHistory();
@@ -139,6 +141,7 @@ export default function AnalysisHistory() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
                 key={record.id}
+                onClick={() => navigate('/dashboard/reports')}
                 className="p-5 hover:bg-gray-50 transition-colors cursor-pointer group flex flex-col sm:flex-row gap-4 sm:items-center justify-between"
               >
                 <div className="flex items-start gap-4 flex-grow">

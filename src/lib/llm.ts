@@ -159,25 +159,18 @@ export function extractRiskFactors(rawResponse: string): string[] {
 
 export async function runMedMOAnalysis(data: ClinicalFormData): Promise<MedMOReport> {
   const patientText = buildPatientText(data);
-  const prompt = buildPrompt(patientText);
 
   // If no LLM endpoint is set, return a structured placeholder so UI can still work
   if (!LLM_BASE) {
     return generateFallbackReport(data, patientText);
   }
 
-  const res = await fetch(`${LLM_BASE}/generate`, {
+  const res = await fetch(`${LLM_BASE}/api/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      inputs: prompt,
-      parameters: {
-        max_new_tokens: 1500,
-        do_sample: true,
-        temperature: 0.1,
-        top_p: 0.9,
-        repetition_penalty: 1.05,
-      },
+      patient_data: patientText,
+      max_new_tokens: 1500
     }),
   });
 
@@ -186,16 +179,32 @@ export async function runMedMOAnalysis(data: ClinicalFormData): Promise<MedMORep
   }
 
   const json = await res.json();
-  // HuggingFace Inference API format: [{ generated_text: "..." }]
-  const rawResponse: string = Array.isArray(json)
-    ? json[0]?.generated_text || ''
-    : json?.generated_text || json?.text || '';
+  const rawResponse = json.raw_response || '';
+  const apiSections = json.sections || {};
+  
+  const mappedSections = {
+    RISK_FACTORS: apiSections.risk_factors || '',
+    RISK_LEVEL: apiSections.risk_level || '',
+    MATERNAL_RISKS: apiSections.maternal_complications || '',
+    FETAL_RISKS: apiSections.fetal_risks || '',
+    MONITORING: apiSections.monitoring || '',
+    TREATMENT_SUGGESTIONS: apiSections.treatment || '',
+    COUNSELLING: apiSections.counselling || '',
+    REFERRAL: apiSections.specialist_referral || ''
+  };
 
-  const sections = parseSections(rawResponse);
-  const risk_level = extractRiskLevel(rawResponse);
-  const risk_factors = extractRiskFactors(rawResponse);
+  const riskFactorsArray = mappedSections.RISK_FACTORS
+    .split(/\n|;|\d+\.|•|-/)
+    .map((s: string) => s.trim())
+    .filter((s: string) => s.length > 10)
+    .slice(0, 8);
+    
+  let risk_level = json.predicted_risk;
+  if (!risk_level || risk_level === 'Unknown') {
+     risk_level = extractRiskLevel(rawResponse);
+  }
 
-  return { risk_level, risk_factors, sections, raw_response: rawResponse };
+  return { risk_level: risk_level as any, risk_factors: riskFactorsArray, sections: mappedSections, raw_response: rawResponse };
 }
 
 // ─── Fallback report when LLM API is unavailable ─────────────────────────────

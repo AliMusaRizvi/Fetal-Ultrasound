@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Lock, Mail, ArrowRight, Fingerprint } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Fingerprint, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { signIn } from '../lib/auth';
 
@@ -32,6 +32,14 @@ export default function Login() {
     <div className="min-h-screen flex bg-[var(--color-bg-warm)]">
       {/* Left Pane - Login Form */}
       <div className="w-full lg:w-1/2 flex flex-col relative z-10">
+        <div className="p-8">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)] text-white flex items-center justify-center">
+              <Activity size={24} />
+            </div>
+            <span className="text-xl font-semibold tracking-tight text-[var(--color-primary)]">Fetal<span className="font-light italic text-[var(--color-accent)]">AI</span></span>
+          </div>
+        </div>
         <div className="flex-grow flex flex-col justify-center px-8 md:px-16 lg:px-24 max-w-2xl mx-auto w-full">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -40,7 +48,7 @@ export default function Login() {
           >
             <div className="mb-12">
               <h1 className="text-4xl md:text-5xl font-serif text-[var(--color-primary)] mb-4 leading-tight">
-                Doctor <span className="italic text-[var(--color-accent)]">Portal</span>
+                Welcome <span className="italic text-[var(--color-accent)]">Back</span>
               </h1>
               <p className="text-[var(--color-ink-light)] font-light text-lg">
                 Secure access to the Fetal Anomaly Detection System.
@@ -74,7 +82,6 @@ export default function Login() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center ml-1">
                   <label htmlFor="password" className="text-xs font-semibold tracking-widest uppercase text-[var(--color-ink-light)]">Password</label>
-                  <a href="#" className="text-xs text-[var(--color-accent)] hover:text-[var(--color-primary)] transition-colors font-medium">Forgot Password?</a>
                 </div>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[var(--color-ink-light)] group-focus-within:text-[var(--color-primary)] transition-colors">

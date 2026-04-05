@@ -717,9 +717,8 @@ function ResultsView({ results, clinicalData, onReset }: {
             {/* Plane */}
             <div className="p-3.5 rounded-lg border border-blue-200 bg-blue-50 flex items-start gap-3">
               <CheckCircle2 className="text-blue-600 flex-shrink-0 mt-0.5" size={18} />
-              <div>
+              <div className="flex items-center">
                 <p className="text-sm font-medium text-blue-900">Plane: {vlm.plane.label}</p>
-                <p className="text-xs text-blue-700 mt-0.5">{(vlm.plane.confidence * 100).toFixed(1)}% confidence</p>
               </div>
             </div>
 
@@ -748,10 +747,15 @@ function ResultsView({ results, clinicalData, onReset }: {
                     {vlm.nt_markers.risk} Risk
                   </span>
                 </div>
-                <p className={`text-xs ${vlm.nt_markers.risk === 'High' ? 'text-red-700' : 'text-emerald-700'}`}>
+                <p className={`text-xs ${vlm.nt_markers.risk === 'High' ? 'text-red-700' : 'text-emerald-700'} mb-2`}>
                   Nasal bone: {vlm.nt_markers.nasal_bone_present ? 'Present' : 'Absent'}
                   {vlm.nt_markers.risk === 'High' && ' — NT ≥ 3.5mm. Down syndrome screening recommended.'}
                 </p>
+                {vlm.nt_markers.heatmap_url && (
+                  <div className="mt-2 rounded overflow-hidden border border-gray-200 max-h-48 flex justify-center bg-black/5">
+                    <img src={vlm.nt_markers.heatmap_url} alt="NT Heatmap" className="max-h-48 object-contain" />
+                  </div>
+                )}
               </div>
             )}
 
@@ -766,9 +770,14 @@ function ResultsView({ results, clinicalData, onReset }: {
                     {vlm.heart_segmentation.ctr > 0.55 ? 'Abnormal' : 'Normal'}
                   </span>
                 </div>
-                <p className={`text-xs ${vlm.heart_segmentation.ctr > 0.55 ? 'text-amber-800' : 'text-emerald-800'}`}>
+                <p className={`text-xs ${vlm.heart_segmentation.ctr > 0.55 ? 'text-amber-800' : 'text-emerald-800'} mb-2`}>
                   {vlm.heart_segmentation.interpretation}
                 </p>
+                {vlm.heart_segmentation.overlay_url && (
+                  <div className="mt-2 rounded overflow-hidden border border-gray-200 max-h-48 flex justify-center bg-black/5">
+                    <img src={vlm.heart_segmentation.overlay_url} alt="Heart Segmentation Overlay" className="max-h-48 object-contain" />
+                  </div>
+                )}
               </div>
             )}
 

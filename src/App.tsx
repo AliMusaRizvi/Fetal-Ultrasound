@@ -10,6 +10,7 @@ import UploadScan from './pages/dashboard/UploadScan';
 import Reports from './pages/dashboard/Reports';
 import ManageDoctors from './pages/dashboard/ManageDoctors';
 import AnalysisHistory from './pages/dashboard/AnalysisHistory';
+import Alerts from './pages/dashboard/Alerts';
 
 export default function App() {
   return (
@@ -29,7 +30,7 @@ export default function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="history" element={<AnalysisHistory />} />
           <Route path="doctors" element={<ManageDoctors />} />
-          <Route path="alerts" element={<div className="max-w-6xl mx-auto space-y-8"><div className="mb-8"><h1 className="text-2xl font-semibold text-gray-900 tracking-tight mb-2">Alerts</h1><p className="text-gray-500 text-sm">Alerts coming soon...</p></div></div>} />
+          <Route path="alerts" element={<Alerts />} />
         </Route>
       </Routes>
     </Router>
