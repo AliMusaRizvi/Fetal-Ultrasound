@@ -56,21 +56,35 @@ export default function Reports() {
     return 'text-amber-700 bg-amber-50 border-amber-200';
   };
 
-  const handleDownload = async (report: ReportRow) => {
+  const handleReportAction = async (report: ReportRow, action: 'view' | 'download') => {
     if (!report.pdf_storage_path) {
-      alert('PDF not yet generated for this report.');
+      alert('PDF not yet generated for this report. The analysis might be pending or failed.');
       return;
     }
-    const { data } = await supabase.storage
-      .from('reports')
-      .createSignedUrl(report.pdf_storage_path, 60);
-    if (data?.signedUrl) {
-      window.open(data.signedUrl, '_blank');
-      // Log download
-      await supabase.from('download_logs').insert({
-        report_id: report.id,
-        doctor_id: localStorage.getItem('userId'),
-      });
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from('reports')
+        .createSignedUrl(report.pdf_storage_path, 60, {
+          download: action === 'download'
+        });
+        
+      if (error) throw error;
+      
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, action === 'view' ? '_blank' : '_self');
+        
+        // Log download activity
+        if (action === 'download') {
+          await supabase.from('download_logs').insert({
+            report_id: report.id,
+            doctor_id: localStorage.getItem('userId'),
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to ${action} report:`, err);
+      alert('Failed to access the report file. It may have been deleted or permissions are missing.');
     }
   };
 
@@ -155,11 +169,14 @@ export default function Reports() {
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
-                      <button className="text-blue-600 hover:text-blue-700 font-medium transition-colors mr-3 sm:mr-4 inline-flex items-center gap-1 text-xs">
+                      <button 
+                        onClick={() => handleReportAction(row, 'view')}
+                        className="text-blue-600 hover:text-blue-700 font-medium transition-colors mr-3 sm:mr-4 inline-flex items-center gap-1 text-xs"
+                      >
                         <Eye size={13} /> View
                       </button>
                       <button
-                        onClick={() => handleDownload(row)}
+                        onClick={() => handleReportAction(row, 'download')}
                         className="text-gray-600 hover:text-gray-900 font-medium transition-colors inline-flex items-center gap-1 text-xs"
                       >
                         <Download size={13} /> Download
