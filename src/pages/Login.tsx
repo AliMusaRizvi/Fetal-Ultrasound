@@ -1,28 +1,30 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Lock, User, ArrowRight, Fingerprint } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Fingerprint } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { signIn } from '../lib/auth';
 
 export default function Login() {
-  const [doctorId, setDoctorId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (doctorId === 'admin' && password === 'admin') {
-      localStorage.setItem('userRole', 'admin');
-      localStorage.setItem('userName', 'System Admin');
-      localStorage.setItem('userId', 'ADMIN');
+    setError('');
+    setLoading(true);
+    try {
+      const user = await signIn(email, password);
+      localStorage.setItem('userRole', user.role);
+      localStorage.setItem('userName', user.full_name);
+      localStorage.setItem('userId', user.id);
       navigate('/dashboard');
-    } else if (doctorId === '0000' && password === 'admin') {
-      localStorage.setItem('userRole', 'doctor');
-      localStorage.setItem('userName', 'Dr. Sarah Jenkins');
-      localStorage.setItem('userId', 'DOC-0000');
-      navigate('/dashboard');
-    } else {
-      setError('Invalid credentials. Try 0000 / admin or admin / admin');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,18 +54,19 @@ export default function Login() {
                 </div>
               )}
               <div className="space-y-2">
-                <label htmlFor="doctorId" className="text-xs font-semibold tracking-widest uppercase text-[var(--color-ink-light)] ml-1">Medical ID / Admin ID</label>
+                <label htmlFor="email" className="text-xs font-semibold tracking-widest uppercase text-[var(--color-ink-light)] ml-1">Email Address</label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[var(--color-ink-light)] group-focus-within:text-[var(--color-primary)] transition-colors">
-                    <User size={20} strokeWidth={1.5} />
+                    <Mail size={20} strokeWidth={1.5} />
                   </div>
                   <input
-                    type="text"
-                    id="doctorId"
-                    value={doctorId}
-                    onChange={(e) => setDoctorId(e.target.value)}
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
                     className="w-full bg-white border border-[var(--color-ink)]/10 rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-mono text-sm shadow-sm"
-                    placeholder="DOC-XXXXX or admin"
+                    placeholder="doctor@fetalai.com"
                   />
                 </div>
               </div>
@@ -82,6 +85,7 @@ export default function Login() {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    required
                     className="w-full bg-white border border-[var(--color-ink)]/10 rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-mono text-sm tracking-widest shadow-sm"
                     placeholder="••••••••"
                   />
@@ -90,11 +94,18 @@ export default function Login() {
 
               <button
                 type="submit"
-                className="w-full bg-[var(--color-primary)] text-white font-medium tracking-wide py-4 rounded-2xl hover:bg-[var(--color-primary-light)] transition-all duration-300 mt-8 flex items-center justify-center gap-3 group shadow-xl shadow-[var(--color-primary)]/20"
+                disabled={loading}
+                className="w-full bg-[var(--color-primary)] text-white font-medium tracking-wide py-4 rounded-2xl hover:bg-[var(--color-primary-light)] transition-all duration-300 mt-8 flex items-center justify-center gap-3 group shadow-xl shadow-[var(--color-primary)]/20 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Fingerprint size={20} className="opacity-70 group-hover:opacity-100 transition-opacity" />
-                Authenticate
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Fingerprint size={20} className="opacity-70 group-hover:opacity-100 transition-opacity" />
+                    Authenticate
+                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </button>
             </form>
           </motion.div>
@@ -109,7 +120,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right Pane - Image & Atmosphere */}
+      {/* Right Pane */}
       <div className="hidden lg:block lg:w-1/2 relative overflow-hidden bg-[var(--color-primary)]">
         <div className="absolute inset-0 bg-[var(--color-primary)] mix-blend-multiply z-10 opacity-60" />
         <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/80 via-transparent to-[var(--color-accent)]/40 z-10" />
@@ -123,8 +134,6 @@ export default function Login() {
           className="absolute inset-0 w-full h-full object-cover"
           referrerPolicy="no-referrer"
         />
-
-        {/* Floating Elements */}
         <div className="absolute inset-0 z-20 p-16 flex flex-col justify-end">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
