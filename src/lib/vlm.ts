@@ -190,9 +190,16 @@ export async function runVLMPipeline(imageFile: File): Promise<VLMPipelineResult
   // Step 1: Classify plane
   const plane = await classifyPlane(imageFile);
   const planeLabel = plane.label.toLowerCase();
+  const rawText = plane.raw_text.toLowerCase();
 
   // Step 2: Route to appropriate head
-  if (planeLabel.includes('brain') || planeLabel.includes('tv') || planeLabel.includes('cb') || planeLabel.includes('transventricular') || planeLabel.includes('cerebellum')) {
+  // Check the extracted label but also flexibly check the entire raw text response for "brain"
+  if (
+    planeLabel.includes('brain') || rawText.includes('brain') ||
+    planeLabel.includes('tv') || planeLabel.includes('cb') ||
+    planeLabel.includes('transventricular') || planeLabel.includes('cerebellum') ||
+    rawText.includes('transventricular') || rawText.includes('cerebellum')
+  ) {
     const brain_anomaly = await detectBrainAnomaly(imageFile);
     return { plane, brain_anomaly, routed_to: 'brain' };
   }
