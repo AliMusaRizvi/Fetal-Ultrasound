@@ -121,10 +121,17 @@ export async function classifyPlane(imageFile: File): Promise<PlaneResult> {
   const raw = text || '';
 
   // Extract top label and confidence from markdown text
-  // Expected format: "**Plane: brain-tv** (confidence: 0.92)"
   const labelMatch = raw.match(/\*\*Plane:\s*([^*]+)\*\*/i) || raw.match(/Plane:\s*([^\n(]+)/i);
   const confMatch = raw.match(/confidence[:\s]+([0-9.]+)/i);
-  const label = labelMatch ? labelMatch[1].trim() : 'unknown';
+  let label = labelMatch ? labelMatch[1].trim() : 'unknown';
+  
+  // Cleanup any lingering markdown asterisks or colons
+  label = label.replace(/[*:]/g, '').trim();
+  
+  if (label.toLowerCase() === 'unknown' && raw.length > 0) {
+    label = raw.replace(/[*]/g, '').split('(')[0].trim() || 'unknown';
+  }
+  
   const confidence = confMatch ? parseFloat(confMatch[1]) : 0;
 
   return { label, confidence, raw_text: raw };
@@ -135,11 +142,38 @@ export async function detectBrainAnomaly(imageFile: File): Promise<BrainAnomalyR
   const { text } = await callGradioEndpoint('predict_brain', uploadedPath);
   const raw = text || '';
 
-  const labelMatch = raw.match(/\*\*([^*]+)\*\*/i) || raw.match(/Class:\s*([^\n(]+)/i);
+  let label = 'unknown';
+  
+  // Try to match "Predicted condition:** Normal" or "Predicted condition: Normal" ignoring inner asterisks
+  const predMatch = raw.match(/Predicted condition:?\*?\*?\s*([a-zA-Z\s-]+)/i);
+  if (predMatch && predMatch[1] && predMatch[1].trim().length > 0) {
+    label = predMatch[1].trim();
+  } else {
+    const classMatch = raw.match(/Class:\s*([^\n(]+)/i);
+    if (classMatch) {
+      label = classMatch[1].trim();
+    } else {
+      const boldMatch = raw.match(/\*\*([^*]+)\*\*/i);
+      if (boldMatch && !boldMatch[1].toLowerCase().includes('condition')) {
+        label = boldMatch[1].trim();
+      }
+    }
+  }
+
+  // Fallback cleanup
+  if (label.toLowerCase() === 'unknown' || label === '') {
+    if (raw.toLowerCase().includes('normal')) label = 'Normal';
+    else label = raw.replace(/[*_]/g, '').split('(')[0].replace(/Predicted condition/i, '').replace(/:/g, '').trim() || 'unknown';
+  }
+
+  // Final scrub of asterisks
+  label = label.replace(/[*]/g, '').trim();
+
   const confMatch = raw.match(/confidence[:\s]+([0-9.]+)/i);
-  const label = labelMatch ? labelMatch[1].trim() : 'unknown';
   const confidence = confMatch ? parseFloat(confMatch[1]) : 0;
-  const is_normal = label.toLowerCase().includes('normal');
+  
+  // Always safely check the ENTIRE text for the word normal implicitly
+  const is_normal = raw.toLowerCase().includes('normal');
 
   return { label, confidence, raw_text: raw, is_normal };
 }
