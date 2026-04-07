@@ -228,8 +228,12 @@ export async function runVLMPipeline(imageFile: File): Promise<VLMPipelineResult
 
   // Step 2: Route to appropriate head
   const brainPlanes = [
-    'brain-thalamic', 'brain-cerebellum', 'brain verticular', 'brain-ventricular',
-    'brain-tv', 'brain-cb', 'transventricular', 'thalamic', 'cerebellum'
+    'brain-thalamic', 'brain thalamic', 
+    'brain-cerebellum', 'brain cerebellum', 
+    'brain verticular', 'brain-ventricular', 'brain ventricular',
+    'brain-tv', 'brain tv', 
+    'brain-cb', 'brain cb', 
+    'transventricular', 'thalamic', 'cerebellum'
   ];
 
   if (brainPlanes.some(bp => planeLabel.includes(bp) || rawText.includes(bp))) {
