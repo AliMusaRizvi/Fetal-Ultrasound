@@ -35,6 +35,7 @@ A clinical decision-support web application for fetal ultrasound analysis. Combi
    ```bash
    git clone https://github.com/AliMusaRizvi/Fetal-Ultrasound.git
    cd Fetal-Ultrasound
+   
    ```
 
 2. Install dependencies:
